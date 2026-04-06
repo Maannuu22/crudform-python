@@ -1,99 +1,82 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRUD Usuarios - Python</title>
-    <style>
-        /* CSS INTEGRADO */
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        h2 { margin: 0; color: #2c3e50; }
+from flask import Flask, render_template, request, redirect, url_for
+import pymysql
+
+app = Flask(__name__)
+
+# Configuración de la conexión a MySQL
+def conectar():
+    return pymysql.connect(
+        host='localhost',
+        user='root',
+        password='', # Tu contraseña
+        db='usuarios',
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
+# RUTA: Listar registros (Equivalente a index.php)
+@app.route('/')
+def index():
+    db = conectar()
+    try:
+        with db.cursor() as cursor:
+            cursor.execute("SELECT * FROM usuarios")
+            usuarios = cursor.fetchall()
+    finally:
+        db.close()
+    return render_template('index.html', usuarios=usuarios)
+
+# RUTA: Crear registro (Equivalente a create.php)
+@app.route('/add', methods=['GET', 'POST'])
+def add():
+    if request.method == 'POST':
+        nombre = request.form['nombre']
+        email = request.form['email']
         
-        /* Botones */
-        .btn {
-            padding: 8px 15px;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 14px;
-            display: inline-block;
-            border: none;
-            cursor: pointer;
-        }
-        .btn-add { background-color: #27ae60; color: white; }
-        .btn-edit { background-color: #f39c12; color: white; margin-right: 5px; }
-        .btn-delete { background-color: #e74c3c; color: white; }
-        .btn:hover { opacity: 0.8; }
+        db = conectar()
+        try:
+            with db.cursor() as cursor:
+                cursor.execute("INSERT INTO usuarios (nombre, email) VALUES (%s, %s)", (nombre, email))
+            db.commit()
+        finally:
+            db.close()
+        return redirect(url_for('index'))
+    
+    return render_template('formulario.html', titulo="Agregar Usuario", usuario=None)
 
-        /* Tabla */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            text-align: left;
-            padding: 12px;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #2c3e50;
-            color: white;
-        }
-        tr:hover { background-color: #f9f9f9; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h2>Lista de Usuarios</h2>
-            <a href="/add" class="btn btn-add"> + Agregar Nuevo</a>
-        </div>
+# RUTA: Editar (Equivalente a update.php)
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+def edit(id):
+    db = conectar()
+    if request.method == 'POST':
+        nombre = request.form['nombre']
+        email = request.form['email']
+        try:
+            with db.cursor() as cursor:
+                cursor.execute("UPDATE usuarios SET nombre=%s, email=%s WHERE id=%s", (nombre, email, id))
+            db.commit()
+        finally:
+            db.close()
+        return redirect(url_for('index'))
+    
+    # Si es GET, buscamos los datos del usuario para el formulario
+    with db.cursor() as cursor:
+        cursor.execute("SELECT * FROM usuarios WHERE id=%s", (id,))
+        usuario = cursor.fetchone()
+    db.close()
+    return render_template('formulario.html', titulo="Editar Usuario", usuario=usuario)
 
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Email</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in usuarios %}
-                <tr>
-                    <td>{{ u.id }}</td>
-                    <td>{{ u.nombre }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>
-                        <a href="/edit/{{ u.id }}" class="btn btn-edit">Editar</a>
-                        <a href="/delete/{{ u.id }}" class="btn btn-delete" onclick="return confirm('¿Eliminar registro?')">Eliminar</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</body>
-</html>
+# RUTA: Eliminar (Equivalente a delete.php)
+@app.route('/delete/<int:id>')
+def delete(id):
+    db = conectar()
+    try:
+        with db.cursor() as cursor:
+            cursor.execute("DELETE FROM usuarios WHERE id=%s", (id,))
+        db.commit()
+    finally:
+        db.close()
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    app.run(debug=True)

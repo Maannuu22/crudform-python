@@ -1,82 +1,41 @@
-from flask import Flask, render_template, request, redirect, url_for
-import pymysql
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD Usuarios - Python</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Lista de Usuarios</h2>
+            <a href="/add" class="btn btn-add"> + Agregar Nuevo</a>
+        </div>
 
-app = Flask(__name__)
-
-# Configuración de la conexión a MySQL
-def conectar():
-    return pymysql.connect(
-        host='localhost',
-        user='root',
-        password='', # Tu contraseña
-        db='usuarios',
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
-    )
-
-# RUTA: Listar registros (Equivalente a index.php)
-@app.route('/')
-def index():
-    db = conectar()
-    try:
-        with db.cursor() as cursor:
-            cursor.execute("SELECT * FROM usuarios")
-            usuarios = cursor.fetchall()
-    finally:
-        db.close()
-    return render_template('index.html', usuarios=usuarios)
-
-# RUTA: Crear registro (Equivalente a create.php)
-@app.route('/add', methods=['GET', 'POST'])
-def add():
-    if request.method == 'POST':
-        nombre = request.form['nombre']
-        email = request.form['email']
-        
-        db = conectar()
-        try:
-            with db.cursor() as cursor:
-                cursor.execute("INSERT INTO usuarios (nombre, email) VALUES (%s, %s)", (nombre, email))
-            db.commit()
-        finally:
-            db.close()
-        return redirect(url_for('index'))
-    
-    return render_template('formulario.html', titulo="Agregar Usuario", usuario=None)
-
-# RUTA: Editar (Equivalente a update.php)
-@app.route('/edit/<int:id>', methods=['GET', 'POST'])
-def edit(id):
-    db = conectar()
-    if request.method == 'POST':
-        nombre = request.form['nombre']
-        email = request.form['email']
-        try:
-            with db.cursor() as cursor:
-                cursor.execute("UPDATE usuarios SET nombre=%s, email=%s WHERE id=%s", (nombre, email, id))
-            db.commit()
-        finally:
-            db.close()
-        return redirect(url_for('index'))
-    
-    # Si es GET, buscamos los datos del usuario para el formulario
-    with db.cursor() as cursor:
-        cursor.execute("SELECT * FROM usuarios WHERE id=%s", (id,))
-        usuario = cursor.fetchone()
-    db.close()
-    return render_template('formulario.html', titulo="Editar Usuario", usuario=usuario)
-
-# RUTA: Eliminar (Equivalente a delete.php)
-@app.route('/delete/<int:id>')
-def delete(id):
-    db = conectar()
-    try:
-        with db.cursor() as cursor:
-            cursor.execute("DELETE FROM usuarios WHERE id=%s", (id,))
-        db.commit()
-    finally:
-        db.close()
-    return redirect(url_for('index'))
-
-if __name__ == '__main__':
-    app.run(debug=True)
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.nombre }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>
+                        <a href="/edit/{{ u.id }}" class="btn btn-edit">Editar</a>
+                        <a href="/delete/{{ u.id }}" class="btn btn-delete" onclick="return confirm('¿Eliminar registro?')">Eliminar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
